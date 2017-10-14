@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.ComponentModel;
 using System.IO;
 using System.IO.Compression;
 using System.Linq;
@@ -18,7 +19,7 @@ namespace BnsDatTool
         BXML_UNKNOWN
     };
 
-    class BPKG_FTE
+    public class BPKG_FTE
     {
         public int FilePathLength;
         public string FilePath;
@@ -42,14 +43,11 @@ namespace BnsDatTool
     }
     public class BNSDat
     {
+        int m_nThreadCount;
 
+        public static string AES_KEY = "bns_obt_kr_2014#";
 
-        // public class BNSDat
-        // {
-
-        public string AES_KEY = "bns_obt_kr_2014#";
-
-        public byte[] XOR_KEY = new byte[16] { 164, 159, 216, 179, 246, 142, 57, 194, 45, 224, 97, 117, 92, 75, 26, 7 };
+        public static byte[] XOR_KEY = new byte[16] { 164, 159, 216, 179, 246, 142, 57, 194, 45, 224, 97, 117, 92, 75, 26, 7 };
 
         public string BytesToHex(byte[] bytes)
         {
@@ -69,7 +67,7 @@ namespace BnsDatTool
             return new string(c);
         }
 
-        private byte[] Decrypt(byte[] buffer, int size)
+        private static byte[] Decrypt(byte[] buffer, int size)
         {
             // AES requires buffer to consist of blocks with 16 bytes (each)
             // expand last block by padding zeros if required...
@@ -93,7 +91,7 @@ namespace BnsDatTool
             return output;
         }
 
-        public byte[] Deflate(byte[] buffer, int sizeCompressed, int sizeDecompressed)
+        public static byte[] Deflate(byte[] buffer, int sizeCompressed, int sizeDecompressed)
         {
             byte[] tmp = Ionic.Zlib.ZlibStream.UncompressBuffer(buffer);
 
@@ -111,7 +109,7 @@ namespace BnsDatTool
             return tmp;
         }
 
-        public byte[] Unpack(byte[] buffer, int sizeStored, int sizeSheared, int sizeUnpacked, bool isEncrypted, bool isCompressed)
+        public static byte[] Unpack(byte[] buffer, int sizeStored, int sizeSheared, int sizeUnpacked, bool isEncrypted, bool isCompressed)
         {
             byte[] output = buffer;
 
@@ -270,7 +268,7 @@ namespace BnsDatTool
                     File.WriteAllBytes(file_path, buffer_unpacked);
                     buffer_unpacked = null;
                 }
-                processedEvent((i + 1), FileCount);
+                
             }
 
             br2.Close();
@@ -281,6 +279,129 @@ namespace BnsDatTool
             fs.Close();
             br = null;
             fs = null;
+        }
+
+        public void FileWork_Complate(object sender, RunWorkerCompletedEventArgs e)
+        {
+            if (e.Cancelled == false && e.Error == null) {
+                
+            }
+            else {
+            }
+            m_nThreadCount--;
+        }
+
+        public void ExtractMultiThread(string FileName, Action<int, int> processedEvent, bool is64 = false)
+        {
+            FileStream fs = new FileStream(FileName, FileMode.Open);
+            BinaryReader br = new BinaryReader(fs);
+            string file_path;
+            byte[] buffer_packed;
+
+            byte[] Signature = br.ReadBytes(8);
+            uint Version = br.ReadUInt32();
+
+            byte[] Unknown_001 = br.ReadBytes(5);
+            int FileDataSizePacked = is64 ? (int)br.ReadInt64() : br.ReadInt32();
+            int FileCount = is64 ? (int)br.ReadInt64() : br.ReadInt32();
+            bool IsCompressed = br.ReadByte() == 1;
+            bool IsEncrypted = br.ReadByte() == 1;
+            byte[] Unknown_002 = br.ReadBytes(62);
+            int FileTableSizePacked = is64 ? (int)br.ReadInt64() : br.ReadInt32();
+            int FileTableSizeUnpacked = is64 ? (int)br.ReadInt64() : br.ReadInt32();
+
+            buffer_packed = br.ReadBytes(FileTableSizePacked);
+            int OffsetGlobal = is64 ? (int)br.ReadInt64() : br.ReadInt32();
+            OffsetGlobal = (int)br.BaseStream.Position; // don't trust value, read current stream location.
+
+            byte[] FileTableUnpacked = Unpack(buffer_packed, FileTableSizePacked, FileTableSizePacked, FileTableSizeUnpacked, IsEncrypted, IsCompressed);
+            buffer_packed = null;
+            MemoryStream ms = new MemoryStream(FileTableUnpacked);
+            BinaryReader br2 = new BinaryReader(ms);
+
+            for (int i = 0; i < FileCount; i++)
+            {
+                BPKG_FTE FileTableEntry = new BPKG_FTE();
+                FileTableEntry.FilePathLength = is64 ? (int)br2.ReadInt64() : br2.ReadInt32();
+                FileTableEntry.FilePath = Encoding.Unicode.GetString(br2.ReadBytes(FileTableEntry.FilePathLength * 2));
+                FileTableEntry.Unknown_001 = br2.ReadByte();
+                FileTableEntry.IsCompressed = br2.ReadByte() == 1;
+                FileTableEntry.IsEncrypted = br2.ReadByte() == 1;
+                FileTableEntry.Unknown_002 = br2.ReadByte();
+                FileTableEntry.FileDataSizeUnpacked = is64 ? (int)br2.ReadInt64() : br2.ReadInt32();
+                FileTableEntry.FileDataSizeSheared = is64 ? (int)br2.ReadInt64() : br2.ReadInt32();
+                FileTableEntry.FileDataSizeStored = is64 ? (int)br2.ReadInt64() : br2.ReadInt32();
+                FileTableEntry.FileDataOffset = (is64 ? (int)br2.ReadInt64() : br2.ReadInt32()) + OffsetGlobal;
+                FileTableEntry.Padding = br2.ReadBytes(60);
+
+                while (m_nThreadCount > 3)
+                {
+
+                }
+
+                file_path = string.Format("{0}.files\\{1}", FileName, FileTableEntry.FilePath);
+                ExtrectFileWorker kWorker = new ExtrectFileWorker(fs, FileTableEntry, file_path);
+                kWorker.WorkerSupportsCancellation = true;
+                kWorker.WorkerReportsProgress = true;
+                kWorker.RunWorkerCompleted += FileWork_Complate;
+
+
+                kWorker.RunWorkerAsync();
+                processedEvent((i + 1), FileCount);
+                m_nThreadCount++;
+            }
+
+            br2.Close();
+            ms.Close();
+            br2 = null;
+            ms = null;
+            br.Close();
+            fs.Close();
+            br = null;
+            fs = null;
+        }
+
+        public static void ExtrectFile(FileStream kFileStream, BPKG_FTE FileTableEntry, string file_path)
+        {
+            byte[] buffer_packed;
+            byte[] buffer_unpacked;
+            if (!Directory.Exists((new FileInfo(file_path)).DirectoryName))
+                Directory.CreateDirectory((new FileInfo(file_path)).DirectoryName);
+            while (kFileStream.CanRead == false)
+            {
+
+            }
+            BinaryReader br = new BinaryReader(kFileStream);
+            br.BaseStream.Position = FileTableEntry.FileDataOffset;
+            MemoryStream kMemStream = new MemoryStream(br.ReadBytes(FileTableEntry.FileDataSizeStored));
+            br = new BinaryReader(kMemStream);
+            // Console.Write("\rExtracting Files: {0}/{1}", (i + 1), FileCount);
+
+
+            buffer_packed = br.ReadBytes(FileTableEntry.FileDataSizeStored);
+            buffer_unpacked = Unpack(buffer_packed, FileTableEntry.FileDataSizeStored, FileTableEntry.FileDataSizeSheared, FileTableEntry.FileDataSizeUnpacked, FileTableEntry.IsEncrypted, FileTableEntry.IsCompressed);
+            buffer_packed = null;
+            FileTableEntry = null;
+
+            if (file_path.EndsWith("xml") || file_path.EndsWith("x16"))
+            {
+                // decode bxml
+                MemoryStream temp = new MemoryStream();
+                MemoryStream temp2 = new MemoryStream(buffer_unpacked);
+                BXML bns_xml = new BXML(XOR_KEY);
+                Convert(temp2, bns_xml.DetectType(temp2), temp, BXML_TYPE.BXML_PLAIN);
+                temp2.Close();
+                File.WriteAllBytes(file_path, temp.ToArray());
+                temp.Close();
+                buffer_unpacked = null;
+            }
+            else
+            {
+                // extract raw
+                File.WriteAllBytes(file_path, buffer_unpacked);
+                buffer_unpacked = null;
+            }
+            br.Close();
         }
 
         public void Compress(string Folder, Action<int, int> processedEvent, bool is64 = false, int compression = 9)
@@ -463,7 +584,7 @@ namespace BnsDatTool
             //Console.WriteLine("\r\nDone!"/* in "+ elapsedTime*/);
         }
 
-        private void Convert(Stream iStream, BXML_TYPE iType, Stream oStream, BXML_TYPE oType)
+        private static void Convert(Stream iStream, BXML_TYPE iType, Stream oStream, BXML_TYPE oType)
         {
             if ((iType == BXML_TYPE.BXML_PLAIN && oType == BXML_TYPE.BXML_BINARY) || (iType == BXML_TYPE.BXML_BINARY && oType == BXML_TYPE.BXML_PLAIN))
             {

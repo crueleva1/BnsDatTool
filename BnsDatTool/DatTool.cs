@@ -7,6 +7,29 @@ using BnsDatTool.lib;
 
 namespace BnsDatTool
 {
+    public class ExtrectFileWorker : BackgroundWorker
+    {
+        public FileStream m_kFileStream;
+        public BPKG_FTE m_kFile;
+        public string m_kFilePath;
+        public ExtrectFileWorker(FileStream fileStream, BPKG_FTE file, string filePath)
+        {
+            m_kFileStream = fileStream;
+            m_kFile = file;
+            m_kFilePath = filePath;
+            DoWork += dataextract_SeperateFile;
+        }
+
+        public void dataextract_SeperateFile(object sender, DoWorkEventArgs e)
+        {
+            ExtrectFileWorker kFileWorker = sender as ExtrectFileWorker;
+            if (kFileWorker == null)
+                return;
+
+            BNSDat.ExtrectFile(kFileWorker.m_kFileStream, kFileWorker.m_kFile, kFileWorker.m_kFilePath);
+        }
+    }
+
     public partial class BnsDatTool : Form
     {
 
@@ -98,8 +121,13 @@ namespace BnsDatTool
         private void datextract_DoWork(object sender, DoWorkEventArgs e)
         {
             CheckForIllegalCrossThreadCalls = false;
-
+            /*
             new BNSDat().Extract(FulldatPath, (number, of) =>
+            {
+                richOut.Text = "Extracting Files: " + number + "/" + of;
+            }, Datis64);
+            */
+            new BNSDat().ExtractMultiThread(FulldatPath, (number, of) =>
             {
                 richOut.Text = "Extracting Files: " + number + "/" + of;
             }, Datis64);
