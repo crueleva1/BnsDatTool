@@ -67,6 +67,7 @@
             this.label4 = new System.Windows.Forms.Label();
             this.txbExportTranslate = new System.Windows.Forms.TextBox();
             this.cboxtbackup = new System.Windows.Forms.CheckBox();
+            this.cboxtmultithread = new System.Windows.Forms.CheckBox();
             this.groupBox2.SuspendLayout();
             this.tabControl1.SuspendLayout();
             this.tabPage1.SuspendLayout();
@@ -217,6 +218,7 @@
             this.tabPage1.Controls.Add(this.lbRfolder);
             this.tabPage1.Controls.Add(this.bntSearchOut);
             this.tabPage1.Controls.Add(this.txbRpFolder);
+            this.tabPage1.Controls.Add(this.cboxtmultithread);
             this.tabPage1.Location = new System.Drawing.Point(4, 22);
             this.tabPage1.Name = "tabPage1";
             this.tabPage1.Padding = new System.Windows.Forms.Padding(3);
@@ -471,6 +473,18 @@
             this.cboxtbackup.Text = "Bakup Original";
             this.cboxtbackup.UseVisualStyleBackColor = true;
             // 
+            // cboxtmultithread
+            // 
+            this.cboxtmultithread.AutoSize = true;
+            this.cboxtmultithread.Checked = false;
+            this.cboxtmultithread.CheckState = System.Windows.Forms.CheckState.Unchecked;
+            this.cboxtmultithread.Location = new System.Drawing.Point(11, 86);
+            this.cboxtmultithread.Name = "cboxtmultithread";
+            this.cboxtmultithread.Size = new System.Drawing.Size(95, 17);
+            this.cboxtmultithread.TabIndex = 33;
+            this.cboxtmultithread.Text = "MultiThread Extract";
+            this.cboxtmultithread.UseVisualStyleBackColor = true;
+            // 
             // BnsDatTool
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
@@ -479,7 +493,7 @@
             this.Controls.Add(this.tabControl1);
             this.Controls.Add(this.groupBox2);
             this.FormBorderStyle = System.Windows.Forms.FormBorderStyle.FixedSingle;
-            this.Icon = ((System.Drawing.Icon)(resources.GetObject("$this.Icon")));
+            //this.Icon = ((System.Drawing.Icon)(resources.GetObject("$this.Icon")));
             this.MaximizeBox = false;
             this.Name = "BnsDatTool";
             this.Text = "BnsDatTool";
@@ -518,7 +532,6 @@
         private System.Windows.Forms.TextBox txbBinFile;
         private System.Windows.Forms.CheckBox cboxGetBinFolder;
         private System.Windows.Forms.Button btnDump;
-        private System.Windows.Forms.CheckBox is64Bin;
         private System.Windows.Forms.Label label2;
         private System.Windows.Forms.Button btnOutBin;
         private System.Windows.Forms.TextBox txbBinFolder;
@@ -537,6 +550,7 @@
         private System.Windows.Forms.Label label6;
         private System.Windows.Forms.Button btn_SearchtLocal;
         private System.Windows.Forms.Button btn_textract;
+        private System.Windows.Forms.CheckBox cboxtmultithread;
     }
 }
 

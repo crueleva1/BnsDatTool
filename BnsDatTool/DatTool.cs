@@ -12,11 +12,15 @@ namespace BnsDatTool
         public FileStream m_kFileStream;
         public BPKG_FTE m_kFile;
         public string m_kFilePath;
-        public ExtrectFileWorker(FileStream fileStream, BPKG_FTE file, string filePath)
+        public int m_nOwerIndex;
+        public int m_nTotal;
+        public ExtrectFileWorker(FileStream fileStream, BPKG_FTE file, string filePath, int ownerIndex, int total)
         {
             m_kFileStream = fileStream;
             m_kFile = file;
             m_kFilePath = filePath;
+            m_nOwerIndex = ownerIndex;
+            m_nTotal = total;
             DoWork += dataextract_SeperateFile;
         }
 
@@ -138,18 +142,22 @@ namespace BnsDatTool
 
             RunWithWorker(((o, args) =>
             {
-                new BNSDat().ExtractMultiThread(FulldatPath, (number, of) =>
+                if (cboxtmultithread.Checked)
                 {
-                    richOut.Text = "Extracting Files: " + number + "/" + of;
-                }, DatIs64);
+                    new BNSDat().ExtractMultiThread(FulldatPath, (number, of) =>
+                    {
+                        richOut.Text = "Extracting Files: " + number + "/" + of;
+                    }, DatIs64);
+                }
+                else
+                {
+                    new BNSDat().Extract(FulldatPath, (number, of) =>
+                    {
+                        richOut.Text = "Extracting Files: " + number + "/" + of;
+                    }, DatIs64);
+                }
+                richOut.AppendText("\r\nDone!");
             }));
-            /*
-            new BNSDat().ExtractMultiThread(FulldatPath, (number, of) =>
-            {
-                richOut.Text = "Extracting Files: " + number + "/" + of;
-            }, DatIs64);
-            */
-            richOut.AppendText("\r\nDone!");
 
             GC.Collect();
         }

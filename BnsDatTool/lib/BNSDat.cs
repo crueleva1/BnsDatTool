@@ -6,6 +6,7 @@ using System.IO.Compression;
 using System.Linq;
 using System.Security.Cryptography;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 using System.Xml;
 
@@ -195,7 +196,7 @@ namespace BnsDatTool
 
         public void Extract(string FileName, Action<int, int> processedEvent, bool is64 = false)
         {
-
+            long nTick = DateTime.Now.Ticks;
             FileStream fs = new FileStream(FileName, FileMode.Open);
             BinaryReader br = new BinaryReader(fs);
             string file_path;
@@ -279,20 +280,53 @@ namespace BnsDatTool
             fs.Close();
             br = null;
             fs = null;
+
+            nTick = DateTime.Now.Ticks - nTick;
+            TimeSpan elapsedSpan = new TimeSpan(nTick);
+            Console.Write("\rComplate time :" + elapsedSpan.TotalMilliseconds);
         }
 
         public void FileWork_Complate(object sender, RunWorkerCompletedEventArgs e)
         {
+            ExtrectFileWorker kWorker = sender as ExtrectFileWorker;
             if (e.Cancelled == false && e.Error == null) {
-                
+                /*
+                bool bIsNew;
+                Mutex kMutex = new Mutex(false, "FileWork_Complate", out bIsNew);
+                kMutex.WaitOne();
+                Console.Write("\r FileExtract: " + kWorker.m_nOwerIndex + " / " + kWorker.m_nTotal + " Done!!");
+                kMutex.ReleaseMutex();
+                kMutex = null;
+                */
             }
             else {
+                bool bIsNew;
+                Mutex kMutex = new Mutex(false, "FileWork_Complate", out bIsNew);
+                kMutex.WaitOne();
+                Console.Write("\r Error!!" + e.Error.ToString());
+                kMutex.ReleaseMutex();
+                kMutex = null;
             }
-            m_nThreadCount--;
+
+            {
+                bool bIsNew;
+                Mutex kMutex = new Mutex(false, "FileWork_Complate", out bIsNew);
+                kMutex.WaitOne();
+                m_nThreadCount--;
+                kMutex.ReleaseMutex();
+                kMutex = null;
+            }
         }
 
         public void ExtractMultiThread(string FileName, Action<int, int> processedEvent, bool is64 = false)
         {
+            if (m_nThreadCount != 0)
+            {
+                Console.Write("\rIt' Processing!!");
+                return;
+            }
+            long nTick = DateTime.Now.Ticks;
+            m_nThreadCount = 0;
             FileStream fs = new FileStream(FileName, FileMode.Open);
             BinaryReader br = new BinaryReader(fs);
             string file_path;
@@ -333,23 +367,33 @@ namespace BnsDatTool
                 FileTableEntry.FileDataSizeStored = is64 ? (int)br2.ReadInt64() : br2.ReadInt32();
                 FileTableEntry.FileDataOffset = (is64 ? (int)br2.ReadInt64() : br2.ReadInt32()) + OffsetGlobal;
                 FileTableEntry.Padding = br2.ReadBytes(60);
-
+                // unlimit thread count
+                /*
                 while (m_nThreadCount > 10)
                 {
 
                 }
-
+                */
+                {
+                    bool bIsNew;
+                    Mutex kMutex = new Mutex(false, "FileWork_Complate", out bIsNew);
+                    kMutex.WaitOne();
+                    m_nThreadCount++;
+                    kMutex.ReleaseMutex();
+                    kMutex = null;
+                }
                 file_path = string.Format("{0}.files\\{1}", FileName, FileTableEntry.FilePath);
-                ExtrectFileWorker kWorker = new ExtrectFileWorker(fs, FileTableEntry, file_path);
+                ExtrectFileWorker kWorker = new ExtrectFileWorker(fs, FileTableEntry, file_path, (i + 1), FileCount);
                 kWorker.WorkerSupportsCancellation = true;
                 kWorker.WorkerReportsProgress = true;
                 kWorker.RunWorkerCompleted += FileWork_Complate;
-
-
                 kWorker.RunWorkerAsync();
                 processedEvent((i + 1), FileCount);
-                m_nThreadCount++;
             }
+
+            Console.Write("\rWaiting Processing...");
+            // wait Processing
+            while (m_nThreadCount != 0);
 
             br2.Close();
             ms.Close();
@@ -359,7 +403,10 @@ namespace BnsDatTool
             fs.Close();
             br = null;
             fs = null;
-            Console.Write("\rDone!!");
+
+            nTick = DateTime.Now.Ticks - nTick;
+            TimeSpan elapsedSpan = new TimeSpan(nTick);
+            Console.Write("\rComplate time :" + elapsedSpan.TotalMilliseconds);
         }
 
         public static void ExtrectFile(FileStream kFileStream, BPKG_FTE FileTableEntry, string file_path)
@@ -372,12 +419,20 @@ namespace BnsDatTool
             {
 
             }
-            BinaryReader br = new BinaryReader(kFileStream);
-            br.BaseStream.Position = FileTableEntry.FileDataOffset;
-            MemoryStream kMemStream = new MemoryStream(br.ReadBytes(FileTableEntry.FileDataSizeStored));
-            br = new BinaryReader(kMemStream);
+            MemoryStream kMemStream;
+            BinaryReader br;
+            {
+                bool bIsNew;
+                Mutex kMutex = new Mutex(false, "ExtrectFile Copy File Data", out bIsNew);
+                kMutex.WaitOne();
+                br = new BinaryReader(kFileStream);
+                br.BaseStream.Position = FileTableEntry.FileDataOffset;
+                kMemStream = new MemoryStream(br.ReadBytes(FileTableEntry.FileDataSizeStored));
+                br = new BinaryReader(kMemStream);
+                kMutex.ReleaseMutex();
+                kMutex = null;
+            }
             // Console.Write("\rExtracting Files: {0}/{1}", (i + 1), FileCount);
-
 
             buffer_packed = br.ReadBytes(FileTableEntry.FileDataSizeStored);
             buffer_unpacked = Unpack(buffer_packed, FileTableEntry.FileDataSizeStored, FileTableEntry.FileDataSizeSheared, FileTableEntry.FileDataSizeUnpacked, FileTableEntry.IsEncrypted, FileTableEntry.IsCompressed);
