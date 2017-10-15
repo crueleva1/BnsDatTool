@@ -819,7 +819,7 @@ namespace BnsDatTool.lib
                 //throw new Exception("SizeDecompressed is wrong!");
             }
 
-            byte[] DataDecompressed = m_bnsDat.Deflate(DataCompressed, SizeCompressed, SizeDecompressed);
+            byte[] DataDecompressed = BNSDat.Deflate(DataCompressed, SizeCompressed, SizeDecompressed);
             FieldLookupCount = br.ReadInt32();
             Fields = new BDAT_FIELDTABLE[FieldLookupCount];
             Lookups = new BDAT_LOOKUPTABLE[FieldLookupCount];
