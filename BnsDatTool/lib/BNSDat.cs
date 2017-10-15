@@ -283,7 +283,7 @@ namespace BnsDatTool
 
             nTick = DateTime.Now.Ticks - nTick;
             TimeSpan elapsedSpan = new TimeSpan(nTick);
-            Console.Write("\rComplate time :" + elapsedSpan.TotalMilliseconds);
+            Console.Write("\rComplate time :" + elapsedSpan.TotalMilliseconds + "ms");
         }
 
         public void FileWork_Complate(object sender, RunWorkerCompletedEventArgs e)
@@ -318,7 +318,7 @@ namespace BnsDatTool
             }
         }
 
-        public void ExtractMultiThread(string FileName, Action<int, int> processedEvent, bool is64 = false)
+        public void ExtractMultiThread(string FileName, Action<int, int, char> processedEvent, bool is64 = false)
         {
             if (m_nThreadCount != 0)
             {
@@ -388,12 +388,22 @@ namespace BnsDatTool
                 kWorker.WorkerReportsProgress = true;
                 kWorker.RunWorkerCompleted += FileWork_Complate;
                 kWorker.RunWorkerAsync();
-                processedEvent((i + 1), FileCount);
+                processedEvent((i + 1), FileCount, '\0');
             }
 
             Console.Write("\rWaiting Processing...");
+            int nRotatingCount = 0;
+            int nRotatingIndex = 0;
+            char [] cRotatingArray = { '/', '-', '\\', '|' };
             // wait Processing
-            while (m_nThreadCount != 0);
+            while (m_nThreadCount != 0)
+            {
+                nRotatingIndex = nRotatingCount % 4;
+                processedEvent(m_nThreadCount, nRotatingIndex, cRotatingArray[nRotatingIndex]);
+                nRotatingCount++;
+                Thread.Sleep(100);
+            }
+            processedEvent(m_nThreadCount, nRotatingIndex, cRotatingArray[nRotatingIndex]);
 
             br2.Close();
             ms.Close();
@@ -406,7 +416,7 @@ namespace BnsDatTool
 
             nTick = DateTime.Now.Ticks - nTick;
             TimeSpan elapsedSpan = new TimeSpan(nTick);
-            Console.Write("\rComplate time :" + elapsedSpan.TotalMilliseconds);
+            Console.Write("\rComplate time :" + elapsedSpan.TotalMilliseconds + "ms");
         }
 
         public static void ExtrectFile(FileStream kFileStream, BPKG_FTE FileTableEntry, string file_path)

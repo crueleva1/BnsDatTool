@@ -64,6 +64,46 @@ namespace BnsDatTool
             TRANSLATE
         };
 
+        public void EnableUI(bool bEnable)
+        {
+            // tab1
+            this.lbDat.Enabled = bEnable;
+            this.bntSearchDat.Enabled = bEnable;
+            this.txbDatFile.Enabled = bEnable;
+            this.cB_output.Enabled = bEnable;
+            this.bntUnpack.Enabled = bEnable;
+            this.Cb_back.Enabled = bEnable;
+            this.btnRepack.Enabled = bEnable;
+            this.lbRfolder.Enabled = bEnable;
+            this.bntSearchOut.Enabled = bEnable;
+            this.txbRpFolder.Enabled = bEnable;
+            this.cboxtmultithread.Enabled = bEnable;
+            // tab2
+            this.label1.Enabled = bEnable;
+            this.btnSeaarchBin.Enabled = bEnable;
+            this.txbBinFile.Enabled = bEnable;
+            this.cboxGetBinFolder.Enabled = bEnable;
+            this.btnDump.Enabled = bEnable;
+            this.label2.Enabled = bEnable;
+            this.btnOutBin.Enabled = bEnable;
+            this.txbBinFolder.Enabled = bEnable;
+            // tab3
+            this.btn_textract.Enabled = bEnable;
+            this.txb_tlocal.Enabled = bEnable;
+            this.label6.Enabled = bEnable;
+            this.btn_SearchtLocal.Enabled = bEnable;
+            this.btn_pack.Enabled = bEnable;
+            this.btn_Translate.Enabled = bEnable;
+            this.btnExportTranslate.Enabled = bEnable;
+            this.btnMergeTranslate.Enabled = bEnable;
+            this.label5.Enabled = bEnable;
+            this.btnSearchTranslateFile.Enabled = bEnable;
+            this.txbImportTranslate.Enabled = bEnable;
+            this.label4.Enabled = bEnable;
+            this.txbExportTranslate.Enabled = bEnable;
+            this.cboxtbackup.Enabled = bEnable;
+        }
+
         public BnsDatTool()
         {
             InitializeComponent();
@@ -144,9 +184,20 @@ namespace BnsDatTool
             {
                 if (cboxtmultithread.Checked)
                 {
-                    new BNSDat().ExtractMultiThread(FulldatPath, (number, of) =>
+                    EnableUI(false);
+                    new BNSDat().ExtractMultiThread(FulldatPath, (number, of, waiting) =>
                     {
-                        richOut.Text = "Extracting Files: " + number + "/" + of;
+                        if (waiting == 0)
+                            richOut.Text = "Extracting Files: " + number + "/" + of;
+                        else
+                        {
+                            string kDots = ".";
+                            for (int nCount = 0; nCount < of; nCount++)
+                            {
+                                kDots += ".";
+                            }
+                            richOut.Text = waiting.ToString() + " Waiting Thread Count: " + number + " " + kDots;
+                        }
                     }, DatIs64);
                 }
                 else
@@ -156,6 +207,7 @@ namespace BnsDatTool
                         richOut.Text = "Extracting Files: " + number + "/" + of;
                     }, DatIs64);
                 }
+                EnableUI(true);
                 richOut.AppendText("\r\nDone!");
             }));
 
@@ -261,11 +313,13 @@ namespace BnsDatTool
 
             RunWithWorker(((o, args) =>
             {
+                EnableUI(false);
                 BNSDat m_bnsDat = new BNSDat();
                 new BNSDat().Compress(repackPath, (number, of) =>
                 {
                     richOut.Text = "Compressing Files: " + number + "/" + of;
                 }, is64, 9);
+                EnableUI(true);
             }));
         }
 
